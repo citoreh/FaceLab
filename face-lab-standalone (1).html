@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style></head><body>
+<title>Face Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two-pane studio — sticky sitter (live schematic + prompt) on the left, slider bench on the right; stacks on phones */
+:root{
+  --bg:#f3eee8; --panel:#fbf8f4; --ink:#221d1a; --muted:#7a6e66; --line:#e2d8cf;
+  --accent:#2f4fa3; --accent-soft:#dfe5f5; --skin:#d9a27f; --skin-line:#8a5a42;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Figtree",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#17141a; --panel:#211d24; --ink:#efe8e2; --muted:#a2958c; --line:#352f38;
+  --accent:#93a9ee; --accent-soft:#2a3150; --skin-line:#f0c6a8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17141a; --panel:#211d24; --ink:#efe8e2; --muted:#a2958c; --line:#352f38;
+  --accent:#93a9ee; --accent-soft:#2a3150; --skin-line:#f0c6a8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:880px){.wrap{grid-template-columns:minmax(0,1fr)}}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;margin:0;line-height:1}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);margin:6px 0 0;max-width:52ch}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+button,.chip{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer}
+button:hover,.chip:hover{border-color:var(--accent)}
+button:focus-visible,.chip:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.sitter{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:grid;gap:14px}
+@media (max-width:880px){.sitter{position:static}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;place-items:center}
+.stage svg{width:100%;max-width:300px;height:auto;display:block}
+.caption{font:400 11px var(--f-mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase;text-align:center;margin-top:4px}
+.out{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:400 13px/1.55 var(--f-mono);padding:10px}
+#neg{min-height:64px}
+.lbl{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.count{font:400 12px var(--f-mono);color:var(--muted)}
+.bench{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:16px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 16px 12px}
+summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 6px;font:600 17px var(--f-display);letter-spacing:-.01em}
+summary::-webkit-details-marker{display:none}
+summary small{font:400 11px var(--f-mono);color:var(--muted)}
+.ctl{display:grid;gap:2px;padding:7px 0;border-top:1px dashed var(--line)}
+.ctl:first-of-type{border-top:0}
+.ctl .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ctl label{font-weight:500;font-size:14px}
+.val{font:400 12px var(--f-mono);color:var(--muted);text-align:right}
+.val.on{color:var(--accent);font-weight:500}
+.ends{display:flex;justify-content:space-between;font:400 10.5px var(--f-mono);color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+select,input[type=text]{width:100%;font:400 14px var(--f-body);padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.toast{font:400 12px var(--f-mono);color:var(--accent);min-height:1em}
+.fitz{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:2px}
+.fitz i{flex:1}
+.ref{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;align-items:start}
+.drop{display:grid;place-items:center;text-align:center;aspect-ratio:4/5;max-width:100%;border:1.5px dashed var(--line);border-radius:10px;font-size:12px;color:var(--muted);cursor:pointer;overflow:hidden;padding:6px;background:var(--bg)}
+.drop b{color:var(--ink);font-weight:600}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+.drop:has(img:not([hidden])){padding:0;border-style:solid}
+.refside{display:grid;gap:8px;min-width:0}
+.tick{display:flex;gap:6px;align-items:center;font-size:13px}
+.note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+.engine{grid-column:1/-1;border:0;border-top:1px dashed var(--line);border-radius:0;padding:4px 0 0;background:none}
+.engine summary{font:600 14px var(--f-body);padding:6px 0}
+.engine summary small{font:400 11px var(--f-mono);color:var(--muted);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eg{display:grid;gap:6px;min-width:0}
+.eg>label{font-size:12px;color:var(--muted);margin-top:4px}
+.keyrow{display:flex;gap:6px;min-width:0}
+.keyrow input{flex:1;min-width:0;font-family:var(--f-mono);font-size:13px}
+.keyrow button{flex:none}
+#forgetKey{justify-self:start;font-size:12px;padding:5px 12px}
+.note.err{color:#c0453a}
+.note.ok{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Face <span>Lab</span></h1>
+      <p class="sub">Move a slider and the prompt rewrites itself. Centre position means "average", so it stays out of the prompt.</p>
+    </div>
+    <div class="tools">
+      <button id="rand" type="button">Randomise</button>
+      <button id="nudge" type="button">Nudge ±</button>
+      <button id="reset" type="button">Reset all</button>
+    </div>
+  </header>
+
+  <aside class="sitter">
+    <div class="ref" id="ref">
+      <label class="drop" id="drop" for="file">
+        <img id="thumb" alt="Your reference portrait" hidden>
+        <span id="dropTxt"><b>Reference portrait</b><br>Drop a photo here or tap to choose</span>
+      </label>
+      <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
+      <div class="refside">
+        <label class="tick"><input type="checkbox" id="camToo"> Also match framing &amp; light</label>
+        <div class="tools">
+          <button id="read" class="primary" type="button" disabled>Read portrait</button>
+          <button id="stop" type="button" hidden>Stop</button>
+        </div>
+        <p class="note" id="refNote" aria-live="polite">The model estimates each feature from the photo and moves the sliders. It describes features only and never tries to identify who the person is.</p>
+      </div>
+      <details class="engine" id="engine">
+        <summary><span>Analyse with</span><small id="engineSum"></small></summary>
+        <div class="eg">
+          <label for="prov">Provider</label>
+          <select id="prov">
+            <option value="builtin">Claude in this page (your Claude plan)</option>
+            <option value="anthropic">Anthropic API (your key)</option>
+            <option value="openai">OpenAI API (your key)</option>
+            <option value="gemini">Google Gemini API (your key)</option>
+            <option value="openrouter">OpenRouter (your key)</option>
+            <option value="compat">OpenAI-compatible URL (LM Studio, Ollama…)</option>
+          </select>
+          <div id="builtinBox" class="eg">
+            <label for="bmodel">Model</label>
+            <select id="bmodel">
+              <option value="tier:default">Balanced (default)</option>
+              <option value="tier:quick">Fastest</option>
+              <option value="tier:complex">Most capable</option>
+              <option value="claude-opus-5-5">Claude Opus 5.5</option>
+              <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+              <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+            </select>
+          </div>
+          <div id="extBox" class="eg" hidden>
+            <div id="urlRow" class="eg" hidden>
+              <label for="baseUrl">Base URL</label>
+              <input type="text" id="baseUrl" placeholder="http://localhost:1234/v1" spellcheck="false" autocomplete="off">
+            </div>
+            <label for="apiKey">API key</label>
+            <div class="keyrow">
+              <input type="password" id="apiKey" placeholder="Paste your key" spellcheck="false" autocomplete="off">
+              <button type="button" id="showKey" aria-label="Show key">Show</button>
+            </div>
+            <label for="xmodel">Model ID (must accept images)</label>
+            <div class="keyrow">
+              <input type="text" id="xmodel" list="modelList" spellcheck="false" autocomplete="off">
+              <button type="button" id="listModels">List models</button>
+            </div>
+            <datalist id="modelList"></datalist>
+            <label class="tick"><input type="checkbox" id="rememberKey" checked> Remember key in this browser</label>
+            <button type="button" id="forgetKey">Forget saved keys</button>
+          </div>
+          <p class="note" id="engineNote"></p>
+        </div>
+      </details>
+    </div>
+    <div class="stage">
+      <svg id="face" viewBox="0 0 300 340" role="img" aria-label="Schematic preview of the face"></svg>
+      <div class="caption">Schematic only · proportions, not likeness</div>
+    </div>
+    <div class="out">
+      <div class="row">
+        <span class="lbl">Prompt format</span>
+        <div class="tabs" id="fmt">
+          <button class="chip" data-f="plain" aria-pressed="true" type="button">Plain</button>
+          <button class="chip" data-f="mj" aria-pressed="false" type="button">Midjourney</button>
+          <button class="chip" data-f="sd" aria-pressed="false" type="button">SD weights</button>
+          <button class="chip" data-f="json" aria-pressed="false" type="button">JSON</button>
+        </div>
+      </div>
+      <textarea id="prompt" aria-label="Generated prompt" spellcheck="false"></textarea>
+      <div class="row"><span class="lbl">Negative prompt</span><span class="count" id="count"></span></div>
+      <textarea id="neg" aria-label="Negative prompt" spellcheck="false"></textarea>
+      <div class="row">
+        <span class="toast" id="toast" aria-live="polite"></span>
+        <div class="tools">
+          <button id="copyneg" type="button">Copy negative</button>
+          <button id="copy" class="primary" type="button">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="bench" id="bench"></main>
+</div>
+
+<script>
+// ---------- definitions ----------
+// Sliders: 0–100, five word buckets, bucket 2 (centre) = neutral and omitted.
+const S=(id,label,ends,words,tmpl)=>({t:'s',id,label,ends,words,tmpl});
+const P=(id,label,opts,tmpl,def=0)=>({t:'p',id,label,opts,tmpl,def});
+const GROUPS=[
+ {name:'Subject',items:[
+  P('sex','Presenting as',['woman','man','androgynous person'],w=>w),
+  S('age','Age',['18','90'],null,null),
+  P('ethn','Heritage (optional)',['unspecified','Persian','Kurdish','Arab','Turkish','South Asian','East Asian','Southeast Asian','West African','East African','Northern European','Southern European','Latin American','Indigenous American','Pacific Islander','mixed heritage'],w=>w==='unspecified'?'':`of ${w} heritage`),
+ ]},
+ {name:'Head & shape',items:[
+  P('shape','Face shape',['unspecified','oval','round','square','heart-shaped','diamond','oblong','triangular'],w=>w==='unspecified'?'':`${w} face`),
+  S('fw','Face width',['narrow','broad'],['very narrow','narrow','','wide','very broad'],w=>`${w} face`),
+  S('fl','Face length',['short','long'],['very short','short','','long','very long'],w=>`${w} face`),
+  S('fh','Forehead',['low','high'],['very low','low','','high','very high and prominent'],w=>`${w} forehead`),
+  S('cb','Cheekbones',['flat','high'],['flat','soft','','high','sharply sculpted high'],w=>`${w} cheekbones`),
+  S('ck','Cheeks',['hollow','full'],['gaunt hollow','slightly hollow','','full','round plump'],w=>`${w} cheeks`),
+  S('jaw','Jawline',['soft','chiselled'],['very soft rounded','soft','','defined','strongly chiselled angular'],w=>`${w} jawline`),
+  S('chin','Chin',['receding','prominent'],['receding','small','','strong','very prominent jutting'],w=>`${w} chin`),
+ ]},
+ {name:'Eyes',items:[
+  S('es','Eye size',['small','large'],['very small','small','','large','very large'],w=>`${w} eyes`),
+  S('esp','Spacing',['close-set','wide-set'],['very close-set','close-set','','wide-set','very wide-set'],w=>`${w} eyes`),
+  S('et','Canthal tilt',['downturned','upturned'],['strongly downturned','slightly downturned','','slightly upturned','strongly upturned almond'],w=>`${w} eyes`),
+  S('el','Eyelids',['hooded','deep crease'],['heavily hooded','hooded','','visible double','deep-set with a deep crease'],w=>`${w} eyelids`),
+  S('lash','Lashes',['sparse','dense'],['sparse','short','','long','very long thick'],w=>`${w} eyelashes`),
+  P('ec','Iris colour',['unspecified','dark brown','hazel','amber','green','grey','blue','light blue','heterochromia'],w=>w==='unspecified'?'':(w==='heterochromia'?'heterochromia, two different eye colours':`${w} eyes`)),
+  S('bag','Under-eye',['smooth','tired'],['bright smooth','smooth','','slight dark circles','deep tired under-eye bags'],w=>`${w} under-eyes`),
+ ]},
+ {name:'Brows',items:[
+  S('bt','Thickness',['thin','bushy'],['very thin','thin','','thick','very bushy'],w=>`${w} eyebrows`),
+  S('ba','Arch',['straight','arched'],['flat straight','gently straight','','arched','high dramatic arched'],w=>`${w} eyebrows`),
+  S('bh','Height',['low','high'],['low heavy','slightly low','','raised','high-set'],w=>`${w} brows`),
+  S('bu','Unibrow',['separate','joined'],['','','','faint joined','pronounced unibrow'],w=>w==='pronounced unibrow'?'pronounced unibrow':'eyebrows nearly joining'),
+ ]},
+ {name:'Nose',items:[
+  S('nl','Length',['short','long'],['very short','short','','long','very long'],w=>`${w} nose`),
+  S('nw','Width',['narrow','wide'],['very narrow','narrow','','wide','very wide flat'],w=>`${w} nose`),
+  S('nb','Bridge',['low / flat','high / aquiline'],['flat low-bridged','low-bridged','','high-bridged','prominent aquiline hooked'],w=>`${w} nose`),
+  S('ntp','Tip',['upturned','drooping'],['strongly upturned button','slightly upturned','','slightly drooping','downturned bulbous'],w=>`${w} nose tip`),
+ ]},
+ {name:'Mouth',items:[
+  S('lf','Lip fullness',['thin','full'],['very thin','thin','','full','very full plump'],w=>`${w} lips`),
+  S('mw','Mouth width',['narrow','wide'],['small narrow','narrow','','wide','very wide'],w=>`${w} mouth`),
+  S('cupid','Cupid’s bow',['soft','defined'],['flat undefined','soft','','defined','sharply peaked'],w=>`${w} cupid's bow`),
+  S('mc','Mouth corners',['down','up'],['downturned','slightly downturned','','slightly upturned','upturned'],w=>`${w} mouth corners`),
+ ]},
+ {name:'Ears',items:[
+  S('es2','Ear size',['small','large'],['very small','small','','large','very large'],w=>`${w} ears`),
+  S('ep','Protrusion',['flat','sticking out'],['flat close to head','close-set','','slightly protruding','prominently protruding'],w=>`${w} ears`),
+ ]},
+ {name:'Skin',items:[
+  S('tone','Skin tone (Fitzpatrick)',['I','VI'],null,null),
+  P('ut','Undertone',['unspecified','warm golden','olive','neutral','cool pink'],w=>w==='unspecified'?'':`${w} undertone`),
+  S('frk','Freckles',['none','heavy'],['','','','light freckles','dense freckles'],w=>w),
+  S('tex','Texture',['airbrushed','raw pores'],['flawless smooth','smooth','','natural visible pores','detailed rough skin texture, pores and blemishes'],w=>`${w} skin`),
+  S('wr','Lines & wrinkles',['none','deep'],['','','','fine lines','deep wrinkles and creases'],w=>w),
+  S('blush','Flush',['pale','flushed'],['pallid','fair','','rosy cheeks','strongly flushed'],w=>w.includes('cheeks')||w.includes('flushed')?w:`${w} complexion`),
+  P('mark','Distinctive mark',['none','beauty mark on cheek','small scar on brow','scar across cheek','dimples','chin cleft','vitiligo patches','birthmark on temple'],w=>w==='none'?'':w),
+ ]},
+ {name:'Hair',items:[
+  S('hl','Length',['shaved','very long'],['shaved head','short cropped','','shoulder-length','very long flowing'],w=>`${w} hair`.replace('head hair','head')),
+  S('htx','Texture',['straight','coily'],['sleek straight','straight','','wavy','tight coily'],w=>`${w} hair`),
+  S('hv','Volume',['flat','voluminous'],['flat','thin','','thick','very voluminous'],w=>`${w} hair`),
+  P('hc','Colour',['unspecified','black','dark brown','chestnut','auburn','copper red','dirty blonde','platinum blonde','salt-and-pepper','silver grey','white','dyed pastel pink','dyed blue'],w=>w==='unspecified'?'':`${w} hair`),
+  P('hs','Style',['unspecified','loose','centre parting','side parting','slicked back','bun','ponytail','braids','curtain bangs','blunt fringe','buzz cut','afro','locs','headscarf'],w=>w==='unspecified'?'':(w==='headscarf'?'wearing a headscarf':`${w}`)),
+  P('fh2','Facial hair',['none','light stubble','heavy stubble','moustache','goatee','short beard','full beard','long beard'],w=>w==='none'?'':w),
+ ]},
+ {name:'Expression',items:[
+  S('smile','Smile',['frown','grin'],['frowning','unsmiling','','soft smile','wide toothy grin'],w=>w),
+  P('emo','Emotion',['neutral','calm','pensive','melancholic','amused','surprised','angry','fearful','tender','defiant','tired','mischievous'],w=>w==='neutral'?'':`${w} expression`),
+  P('gaze','Gaze',['at camera','off to the side','downcast','upward','eyes closed','over the shoulder'],w=>w==='at camera'?'looking directly at the camera':(w==='eyes closed'?'eyes closed':`gaze ${w}`)),
+  S('tilt','Head tilt',['left','right'],['head tilted left','head slightly tilted left','','head slightly tilted right','head tilted right'],w=>w),
+ ]},
+ {name:'Camera & light',items:[
+  P('frame','Framing',['close-up headshot','extreme close-up','head and shoulders','bust portrait','profile view','three-quarter view'],w=>w),
+  S('lens','Lens (mm)',['24','135'],null,null),
+  P('light','Lighting',['soft window light','Rembrandt lighting','butterfly lighting','split lighting','hard noon sun','golden hour backlight','overcast diffuse','neon rim light','candlelight','studio softbox'],w=>w),
+  P('style','Medium',['photorealistic portrait photo','35mm film photograph','black and white film portrait','Polaroid','oil painting','charcoal drawing','watercolour','Persian miniature painting','3D render','anime'],w=>w),
+  P('bg','Background',['plain grey backdrop','dark studio backdrop','blurred street','lush garden','Tehran rooftop at dusk','library interior','seamless white'],w=>w),
+  S('dof','Depth of field',['deep','shallow'],['everything in focus','deep focus','','shallow depth of field','extremely shallow depth of field, creamy bokeh'],w=>w),
+ ]},
+];
+const FITZ=[['#f6dccb','very fair porcelain skin (Fitzpatrick I)'],['#ecc3a2','fair skin (Fitzpatrick II)'],['#d9a27f','light olive-beige skin (Fitzpatrick III)'],['#b67d56','medium tan skin (Fitzpatrick IV)'],['#8a5537','deep brown skin (Fitzpatrick V)'],['#5a3423','very dark skin (Fitzpatrick VI)']];
+const DEF={age:30,tone:40,lens:85};
+const ALL=GROUPS.flatMap(g=>g.items);
+
+// ---------- state ----------
+const st={};
+function defaults(){ALL.forEach(c=>st[c.id]=c.t==='s'?(DEF[c.id]??50):(c.def??0));
+  st.frame=0;st.light=0;st.style=0;st.bg=0;}
+defaults();
+let fmt='plain';
+
+// ---------- helpers ----------
+const bucket=v=>Math.min(4,Math.round(v/25));
+const strength=v=>Math.abs(v-50)/50;
+function ageOf(v){return Math.round(18+v/100*72)}
+function lensOf(v){const L=[24,28,35,50,85,105,135];return L[Math.round(v/100*(L.length-1))]}
+function fitzOf(v){return Math.min(5,Math.floor(v/100*6))}
+function word(c){
+  const v=st[c.id];
+  if(c.id==='age'){const a=ageOf(v);return `${a}-year-old`}
+  if(c.id==='tone')return FITZ[fitzOf(v)][1];
+  if(c.id==='lens')return `${lensOf(v)}mm lens`;
+  if(c.t==='p')return c.tmpl(c.opts[v]);
+  const w=c.words[bucket(v)];return w?c.tmpl(w):'';
+}
+function display(c){
+  const v=st[c.id];
+  if(c.id==='age')return `${ageOf(v)} yrs`;
+  if(c.id==='tone')return `type ${['I','II','III','IV','V','VI'][fitzOf(v)]}`;
+  if(c.id==='lens')return `${lensOf(v)} mm`;
+  const w=c.words[bucket(v)];return w||'average';
+}
+
+// ---------- build controls ----------
+const bench=document.getElementById('bench');
+GROUPS.forEach((g,gi)=>{
+  const d=document.createElement('details');d.open=gi<6;
+  d.innerHTML=`<summary>${g.name}<small>${g.items.length} controls</small></summary>`;
+  g.items.forEach(c=>{
+    const w=document.createElement('div');w.className='ctl';
+    if(c.t==='s'){
+      w.innerHTML=`<div class="top"><label for="c_${c.id}">${c.label}</label><span class="val" id="v_${c.id}"></span></div>
+      <input type="range" id="c_${c.id}" min="0" max="100" step="1" value="${st[c.id]}">
+      ${c.id==='tone'?'<div class="fitz">'+FITZ.map(f=>`<i style="background:${f[0]}"></i>`).join('')+'</div>':''}
+      <div class="ends"><span>${c.ends[0]}</span><span>${c.ends[1]}</span></div>`;
+    }else{
+      w.innerHTML=`<div class="top"><label for="c_${c.id}">${c.label}</label></div>
+      <select id="c_${c.id}">${c.opts.map((o,i)=>`<option value="${i}">${o}</option>`).join('')}</select>`;
+    }
+    d.appendChild(w);
+  });
+  bench.appendChild(d);
+});
+ALL.forEach(c=>{
+  const el=document.getElementById('c_'+c.id);
+  el.value=st[c.id];
+  el.addEventListener('input',()=>{st[c.id]=+el.value;render()});
+});
+
+// ---------- prompt ----------
+function phrases(){
+  const out=[];
+  ALL.forEach(c=>{
+    if(['sex','age','ethn','frame','style','light','bg','lens','dof'].includes(c.id))return;
+    const p=word(c);if(p)out.push({p,s:c.t==='s'?strength(st[c.id]):.5,id:c.id});
+  });
+  return out;
+}
+function subject(){
+  const sex=ALL.find(c=>c.id==='sex'),eth=ALL.find(c=>c.id==='ethn');
+  return `${word(ALL.find(c=>c.id==='age'))} ${word(sex)}${word(eth)?' '+word(eth):''}`;
+}
+function build(){
+  const g=id=>word(ALL.find(c=>c.id===id));
+  const ph=phrases();
+  const head=`${g('style')}, ${g('frame')} of a ${subject()}`;
+  const cam=[g('light'),g('lens'),g('dof'),g('bg')].filter(Boolean);
+  if(fmt==='sd'){
+    const w=ph.map(x=>{const k=(1+x.s*0.4).toFixed(2);return x.s>=0.45?`(${x.p}:${k})`:x.p});
+    return [head,...w,...cam,'highly detailed, sharp focus'].join(', ');
+  }
+  if(fmt==='json'){
+    const o={subject:subject(),medium:g('style'),framing:g('frame'),features:{}};
+    GROUPS.forEach(gr=>{const f=gr.items.filter(c=>!['sex','age','ethn','frame','style','light','bg','lens','dof'].includes(c.id)).map(word).filter(Boolean);if(f.length)o.features[gr.name.toLowerCase()]=f});
+    o.camera={lighting:g('light'),lens:g('lens'),depth_of_field:g('dof')||'natural',background:g('bg')};
+    return JSON.stringify(o,null,2);
+  }
+  const body=[head,...ph.map(x=>x.p),...cam].join(', ');
+  if(fmt==='mj')return body+' --ar 4:5 --style raw --v 7';
+  return body+'.';
+}
+function negative(){
+  const n=['deformed','asymmetrical eyes','extra fingers','blurry','lowres','watermark','text','cartoonish'];
+  if(st.tex>60)n.push('airbrushed','plastic skin');
+  if(st.tex<40)n.push('visible pores','blemishes');
+  if(bucket(st.smile)<2)n.push('smiling');
+  if(st.fh2===0&&st.sex===1)n.push('beard','stubble');
+  if(['oil painting','charcoal drawing','watercolour','Persian miniature painting','anime','3D render'].includes(ALL.find(c=>c.id==='style').opts[st.style]))n.splice(n.indexOf('cartoonish'),1);
+  return n.join(', ');
+}
+
+// ---------- schematic face ----------
+const svg=document.getElementById('face');
+function lerp(a,b,t){return a+(b-a)*t}
+function drawFace(){
+  const n=k=>(st[k]-50)/50; // -1..1
+  const cx=150,cy=165;
+  const fw=78+n('fw')*14+n('ck')*4, fl=108+n('fl')*14;
+  const top=cy-fl, chinY=cy+fl*0.92+n('chin')*6;
+  const jawW=fw*(0.72+n('jaw')*0.12+(st.shape===2?0.14:0)+(st.shape===3?-0.12:0)+(st.shape===1?0.08:0));
+  const cheekW=fw+(n('cb')*6);
+  const jawY=cy+fl*0.45;
+  const chinW=10+n('chin')*4+(st.shape===2?10:0);
+  const tone=FITZ[fitzOf(st.tone)][0];
+  const line='var(--skin-line)';
+  const hairCol=['#3a2a20','#151012','#3b2618','#5e3420','#7a3a22','#b4502c','#a98b5c','#e6dcbc','#7d7a76','#b9b7b3','#ebe8e2','#e9a7c4','#4f6fc4'][st.hc]||'#3a2a20';
+  // face path
+  const face=`M ${cx} ${top}
+    C ${cx+cheekW*0.9} ${top} ${cx+cheekW} ${cy-fl*0.35} ${cx+cheekW} ${cy}
+    C ${cx+cheekW} ${cy+fl*0.25} ${cx+jawW+6} ${jawY-6} ${cx+jawW} ${jawY}
+    C ${cx+jawW*0.7} ${chinY-14} ${cx+chinW+6} ${chinY} ${cx} ${chinY}
+    C ${cx-chinW-6} ${chinY} ${cx-jawW*0.7} ${chinY-14} ${cx-jawW} ${jawY}
+    C ${cx-jawW-6} ${jawY-6} ${cx-cheekW} ${cy+fl*0.25} ${cx-cheekW} ${cy}
+    C ${cx-cheekW} ${cy-fl*0.35} ${cx-cheekW*0.9} ${top} ${cx} ${top} Z`;
+  // ears
+  const es=1+n('es2')*0.3, ep=n('ep')*8;
+  const ear=s=>`<ellipse cx="${cx+s*(cheekW+4+ep*0.6)}" cy="${cy+4}" rx="${(9+ep*0.6)*es}" ry="${18*es}" fill="${tone}" stroke="${line}" stroke-width="1.5"/>`;
+  // hair
+  const hl=st.hl/100, hv=1+n('hv')*0.12;
+  const hairTop=top-6-(n('hv')*8);
+  const hairLine=top+fl*(0.22+n('fh')*0.08);
+  let hair='';
+  if(hl>0.12){
+    const drop=lerp(cy-10,cy+fl*1.6,Math.max(0,(hl-0.3)/0.7));
+    hair=`<path d="M ${cx-cheekW*1.08*hv} ${drop} C ${cx-cheekW*1.2*hv} ${top} ${cx-cheekW*0.6} ${hairTop} ${cx} ${hairTop} C ${cx+cheekW*0.6} ${hairTop} ${cx+cheekW*1.2*hv} ${top} ${cx+cheekW*1.08*hv} ${drop} L ${cx+cheekW*0.92} ${drop} L ${cx+cheekW*0.92} ${cy-10} C ${cx+cheekW*0.7} ${hairLine} ${cx-cheekW*0.7} ${hairLine} ${cx-cheekW*0.92} ${cy-10} L ${cx-cheekW*0.92} ${drop} Z" fill="${hairCol}" opacity=".95"/>`;
+  }
+  const fringe=hl>0.12?`<path d="M ${cx-cheekW*0.95} ${cy-14} C ${cx-cheekW*0.8} ${hairLine-6} ${cx+cheekW*0.8} ${hairLine-6} ${cx+cheekW*0.95} ${cy-14} C ${cx+cheekW*0.9} ${top} ${cx-cheekW*0.9} ${top} ${cx-cheekW*0.95} ${cy-14} Z" fill="${hairCol}"/>`:(st.hl>4?`<path d="${face}" fill="none" stroke="${hairCol}" stroke-width="3" stroke-dasharray="1 3" clip-path="url(#topc)"/>`:'');
+  // eyes
+  const eyeY=cy-fl*0.05;
+  const sp=24+n('esp')*7, er=9+n('es')*3, tilt=n('et')*7;
+  const lid=n('el');
+  const irisC=['#4a3324','#2a1a12','#7b6a3a','#9b6a24','#4c7a4e','#7c8a90','#3f6fa8','#7fa9d6','#3f6fa8'][st.ec];
+  const eye=s=>{const x=cx+s*(sp+er*0.6);const t=-s*tilt;
+    const irisL=st.ec===8&&s<0?'#4a3324':irisC;
+    const gz=['0 0','5 0','0 3','0 -3','0 0','4 1'][st.gaze].split(' ').map(Number);
+    if(st.gaze===4)return `<path d="M ${x-er*1.4} ${eyeY} Q ${x} ${eyeY+er*0.7} ${x+er*1.4} ${eyeY}" fill="none" stroke="${line}" stroke-width="2" transform="rotate(${t} ${x} ${eyeY})"/>`;
+    return `<g transform="rotate(${t} ${x} ${eyeY})">
+      <path d="M ${x-er*1.45} ${eyeY} Q ${x} ${eyeY-er*1.15} ${x+er*1.45} ${eyeY} Q ${x} ${eyeY+er*0.95} ${x-er*1.45} ${eyeY} Z" fill="#fbf7f2" stroke="${line}" stroke-width="1.6"/>
+      <circle cx="${x+gz[0]*s*(st.gaze===1||st.gaze===5?1:0)+(st.gaze===1||st.gaze===5?0:0)}" cy="${eyeY+gz[1]}" r="${er*0.62}" fill="${irisL}"/>
+      <circle cx="${x+(st.gaze===1?gz[0]:0)}" cy="${eyeY+gz[1]}" r="${er*0.27}" fill="#111"/>
+      <path d="M ${x-er*1.3} ${eyeY-er*0.75-lid*3} Q ${x} ${eyeY-er*(1.35+lid*0.3)} ${x+er*1.3} ${eyeY-er*0.75-lid*3}" fill="none" stroke="${line}" stroke-width="1" opacity=".7"/>
+      ${n('lash')>0.2?`<path d="M ${x-er*1.45} ${eyeY} Q ${x} ${eyeY-er*1.15} ${x+er*1.45} ${eyeY}" fill="none" stroke="#1b1412" stroke-width="${1.5+n('lash')*2.2}"/>`:''}
+    </g>`};
+  // brows
+  const bY=eyeY-er-12-n('bh')*6, bt=2.2+n('bt')*2.2+2, ba=n('ba')*7;
+  const bjoin=st.bu>60;
+  const brow=s=>{const x0=cx+s*(bjoin?4:sp*0.35),x1=cx+s*(sp+er*2.4);const mx=(x0+x1)/2;
+    return `<path d="M ${x0} ${bY+2} Q ${mx} ${bY-6-ba} ${x1} ${bY+3-tilt*0.3*1}" fill="none" stroke="${hairCol}" stroke-width="${bt}" stroke-linecap="round"/>`};
+  // nose
+  const nl=fl*0.32+n('nl')*10, nw=11+n('nw')*5, tipY=eyeY+nl, tipD=n('ntp')*4;
+  const nose=`<path d="M ${cx-3-n('nb')*1} ${eyeY+6} Q ${cx-5-n('nb')*3} ${tipY-12} ${cx-2} ${tipY+tipD}" fill="none" stroke="${line}" stroke-width="1.5" opacity=".75"/>
+    <path d="M ${cx-nw} ${tipY-2} Q ${cx-nw-3} ${tipY+6+tipD} ${cx-nw*0.35} ${tipY+5+tipD} Q ${cx} ${tipY+9+tipD} ${cx+nw*0.35} ${tipY+5+tipD} Q ${cx+nw+3} ${tipY+6+tipD} ${cx+nw} ${tipY-2}" fill="none" stroke="${line}" stroke-width="1.6"/>`;
+  // mouth
+  const mY=tipY+(chinY-tipY)*0.42, mw=20+n('mw')*7, lf=1+n('lf')*0.9;
+  const sm=n('smile')*7+n('mc')*3, cup=n('cupid')*2.5;
+  const mouth=`<path d="M ${cx-mw} ${mY-sm*0.4} Q ${cx-mw*0.5} ${mY-4*lf-1} ${cx-3} ${mY-3*lf+cup*0.2} L ${cx} ${mY-2*lf+cup*0.6} L ${cx+3} ${mY-3*lf+cup*0.2} Q ${cx+mw*0.5} ${mY-4*lf-1} ${cx+mw} ${mY-sm*0.4} Q ${cx} ${mY+sm*0.6} ${cx-mw} ${mY-sm*0.4} Z" fill="#b5594f" opacity=".92"/>
+    <path d="M ${cx-mw} ${mY-sm*0.4} Q ${cx} ${mY+sm*0.6} ${cx+mw} ${mY-sm*0.4} Q ${cx+mw*0.5} ${mY+5*lf+sm*0.3} ${cx} ${mY+5.5*lf+sm*0.3} Q ${cx-mw*0.5} ${mY+5*lf+sm*0.3} ${cx-mw} ${mY-sm*0.4} Z" fill="#c8685d" opacity=".92"/>
+    ${st.smile>80?`<path d="M ${cx-mw*0.7} ${mY} Q ${cx} ${mY+sm*0.5} ${cx+mw*0.7} ${mY}" stroke="#fbf7f2" stroke-width="2.5" fill="none"/>`:''}`;
+  // extras
+  const cheekRose=st.blush>60?`<ellipse cx="${cx-sp-6}" cy="${tipY}" rx="15" ry="9" fill="#e26a6a" opacity="${(st.blush-50)/170}"/><ellipse cx="${cx+sp+6}" cy="${tipY}" rx="15" ry="9" fill="#e26a6a" opacity="${(st.blush-50)/170}"/>`:'';
+  let freck='';if(st.frk>60){const k=Math.round((st.frk-60)/2);for(let i=0;i<k;i++){const a=(i*137.5)%360*Math.PI/180,r=6+(i*7)%22,s=i%2?1:-1;freck+=`<circle cx="${cx+s*(sp*0.8)+Math.cos(a)*r}" cy="${tipY-8+Math.sin(a)*r*0.5}" r="1.1" fill="${line}" opacity=".5"/>`}}
+  const wr=st.wr>60?`<g stroke="${line}" stroke-width="1" fill="none" opacity="${(st.wr-50)/90}"><path d="M ${cx-30} ${top+fl*0.38} q 30 -4 60 0"/><path d="M ${cx-26} ${top+fl*0.46} q 26 -3 52 0"/><path d="M ${cx-nw-8} ${tipY+6} q -6 14 -2 26"/><path d="M ${cx+nw+8} ${tipY+6} q 6 14 2 26"/></g>`:'';
+  const bags=st.bag>60?`<g stroke="${line}" fill="none" opacity="${(st.bag-50)/80}"><path d="M ${cx-sp-er*1.6} ${eyeY+er+3} q ${er*1.4} ${6} ${er*2.6} 0"/><path d="M ${cx+sp-er} ${eyeY+er+3} q ${er*1.4} ${6} ${er*2.6} 0"/></g>`:'';
+  const mk=['','<circle cx="'+(cx+sp+10)+'" cy="'+(tipY+10)+'" r="2.2" fill="#3a2418"/>','<path d="M '+(cx+sp+4)+' '+(bY-8)+' l 4 10" stroke="'+line+'" stroke-width="1.6"/>','<path d="M '+(cx+sp-4)+' '+(tipY-6)+' l 18 18" stroke="'+line+'" stroke-width="1.6"/>','<g fill="'+line+'" opacity=".55"><circle cx="'+(cx-mw-6)+'" cy="'+(mY+4)+'" r="2"/><circle cx="'+(cx+mw+6)+'" cy="'+(mY+4)+'" r="2"/></g>','<path d="M '+cx+' '+(chinY-14)+' l 0 9" stroke="'+line+'" stroke-width="1.4"/>','<ellipse cx="'+(cx-sp-4)+'" cy="'+(eyeY+22)+'" rx="12" ry="7" fill="#f6ece4" opacity=".75"/>','<ellipse cx="'+(cx+cheekW-14)+'" cy="'+(eyeY-6)+'" rx="8" ry="6" fill="#8a4a3a" opacity=".35"/>'][st.mark]||'';
+  // facial hair
+  const fhK=st.fh2;let beard='';
+  if(fhK>0){const op=[0,.25,.45,.8,.8,.85,.9,.95][fhK];
+    if(fhK===3)beard=`<path d="M ${cx-mw-4} ${mY-4} Q ${cx} ${mY-14} ${cx+mw+4} ${mY-4} Q ${cx} ${mY-7} ${cx-mw-4} ${mY-4}Z" fill="${hairCol}" opacity="${op}"/>`;
+    else if(fhK===4)beard=`<path d="M ${cx-mw*0.6} ${mY+8} Q ${cx} ${chinY+8} ${cx+mw*0.6} ${mY+8} Q ${cx} ${mY+14} ${cx-mw*0.6} ${mY+8}Z" fill="${hairCol}" opacity="${op}"/>`;
+    else{const ext=fhK===7?30:fhK===6?10:0;beard=`<path d="M ${cx-cheekW+2} ${cy+6} C ${cx-jawW} ${jawY+10} ${cx-20} ${chinY+ext} ${cx} ${chinY+ext+4} C ${cx+20} ${chinY+ext} ${cx+jawW} ${jawY+10} ${cx+cheekW-2} ${cy+6} C ${cx+jawW*0.7} ${mY-10} ${cx+mw} ${mY+12} ${cx} ${mY+12} C ${cx-mw} ${mY+12} ${cx-jawW*0.7} ${mY-10} ${cx-cheekW+2} ${cy+6} Z" fill="${hairCol}" opacity="${op}"/>`;}}
+  const scarf=st.hs===13?`<path d="M ${cx-cheekW-18} ${chinY+40} C ${cx-cheekW-26} ${top-30} ${cx+cheekW+26} ${top-30} ${cx+cheekW+18} ${chinY+40} L ${cx+cheekW*0.7} ${chinY+40} C ${cx+cheekW+4} ${cy} ${cx+cheekW*0.9} ${top+6} ${cx} ${top+4} C ${cx-cheekW*0.9} ${top+6} ${cx-cheekW-4} ${cy} ${cx-cheekW*0.7} ${chinY+40} Z" fill="var(--accent)" opacity=".85"/>`:'';
+  const neck=`<path d="M ${cx-jawW*0.55} ${jawY+18} L ${cx-jawW*0.6} 340 L ${cx+jawW*0.6} 340 L ${cx+jawW*0.55} ${jawY+18}" fill="${tone}" stroke="${line}" stroke-width="1.5"/>`;
+  const rot=n('tilt')*8;
+  svg.innerHTML=`<defs><clipPath id="topc"><rect x="0" y="0" width="300" height="${hairLine}"/></clipPath></defs>
+   <g transform="rotate(${rot} ${cx} ${cy+40})">
+    ${hair}${neck}${st.hs!==13?ear(-1)+ear(1):''}
+    <path d="${face}" fill="${tone}" stroke="${line}" stroke-width="1.8"/>
+    ${cheekRose}${freck}${wr}${bags}${mk}
+    ${st.hs!==13?fringe:''}${eye(-1)}${eye(1)}${brow(-1)}${brow(1)}${nose}${beard}${mouth}${scarf}
+   </g>`;
+}
+
+// ---------- render ----------
+const ta=document.getElementById('prompt'),neg=document.getElementById('neg'),count=document.getElementById('count');
+function render(){
+  ALL.forEach(c=>{if(c.t!=='s')return;const v=document.getElementById('v_'+c.id);const t=display(c);v.textContent=t;v.classList.toggle('on',t!=='average')});
+  ta.value=build();neg.value=negative();
+  const words=ta.value.split(/\s+/).filter(Boolean).length;count.textContent=`${words} words · ${ta.value.length} chars`;
+  drawFace();
+}
+function sync(){ALL.forEach(c=>document.getElementById('c_'+c.id).value=st[c.id]);render()}
+
+// ---------- actions ----------
+const toast=document.getElementById('toast');
+function say(m){toast.textContent=m;clearTimeout(say.t);say.t=setTimeout(()=>toast.textContent='',1800)}
+function copy(el,msg){navigator.clipboard.writeText(el.value).then(()=>say(msg)).catch(()=>{el.focus();el.select();say('Selected — press Ctrl/Cmd+C')})}
+document.getElementById('copy').onclick=()=>copy(ta,'Prompt copied');
+document.getElementById('copyneg').onclick=()=>copy(neg,'Negative copied');
+document.getElementById('reset').onclick=()=>{defaults();sync();say('Reset to average')};
+const keep=['frame','light','style','bg','lens','dof','sex','ethn'];
+document.getElementById('rand').onclick=()=>{ALL.forEach(c=>{if(keep.includes(c.id))return;
+  if(c.t==='s'){const r=Math.random();st[c.id]=r<.45?50:Math.round(Math.random()*100)}
+  else st[c.id]=Math.random()<.5?(c.def??0):Math.floor(Math.random()*c.opts.length)});sync();say('New face — camera settings kept')};
+document.getElementById('nudge').onclick=()=>{ALL.forEach(c=>{if(c.t==='s'&&!keep.includes(c.id))st[c.id]=Math.max(0,Math.min(100,st[c.id]+Math.round((Math.random()-.5)*24)))});sync();say('Nudged every slider a little')};
+document.querySelectorAll('#fmt .chip').forEach(b=>b.onclick=()=>{fmt=b.dataset.f;document.querySelectorAll('#fmt .chip').forEach(x=>x.setAttribute('aria-pressed',x===b));render()});
+
+// ---------- reference portrait → sliders ----------
+const $=id=>document.getElementById(id);
+const fileIn=$('file'),drop=$('drop'),thumb=$('thumb'),dropTxt=$('dropTxt'),readBtn=$('read'),stopBtn=$('stop'),
+  refNote=$('refNote'),camToo=$('camToo');
+let refFile=null,ctl=null,sampleFn=null;
+const IN_CLAUDE=!!window.claude; // inside Claude's viewer the network is sandboxed
+const CAM=['frame','light','style','bg','lens','dof'];
+const SKIP=['ethn']; // heritage is never guessed from a photo
+function note(t,cls=''){refNote.textContent=t;refNote.className='note '+cls}
+
+// ---- saved engine settings (this browser only) ----
+const STORE='faceLab.engine.v1';
+const PROV={
+  builtin:{name:'Claude in this page'},
+  anthropic:{name:'Anthropic',suggest:['claude-opus-5-5','claude-sonnet-5-5','claude-haiku-5-5'],def:'claude-sonnet-5-5'},
+  openai:{name:'OpenAI',suggest:[],def:''},
+  gemini:{name:'Gemini',suggest:[],def:''},
+  openrouter:{name:'OpenRouter',suggest:['anthropic/claude-sonnet-5-5'],def:''},
+  compat:{name:'Custom endpoint',suggest:[],def:''},
+};
+let cfg={provider:IN_CLAUDE?'builtin':'anthropic',builtinModel:'tier:default',models:{},keys:{},baseUrl:'',remember:true};
+function loadCfg(){try{const s=JSON.parse(localStorage.getItem(STORE)||'null');if(s)cfg={...cfg,...s,models:{...s.models},keys:{...s.keys}}}catch{}}
+function saveCfg(){try{const out={...cfg,keys:cfg.remember?cfg.keys:{}};localStorage.setItem(STORE,JSON.stringify(out))}catch{}}
+loadCfg();
+if(!IN_CLAUDE&&cfg.provider==='builtin')cfg.provider='anthropic';
+
+const prov=$('prov'),bmodel=$('bmodel'),builtinBox=$('builtinBox'),extBox=$('extBox'),urlRow=$('urlRow'),baseUrl=$('baseUrl'),
+  apiKey=$('apiKey'),xmodel=$('xmodel'),modelList=$('modelList'),rememberKey=$('rememberKey'),engineNote=$('engineNote'),engineSum=$('engineSum');
+function eNote(t,cls=''){engineNote.textContent=t;engineNote.className='note '+cls}
+// External providers can't be reached from inside Claude's sandbox; the builtin one doesn't exist outside it.
+[...prov.options].forEach(o=>{
+  if(o.value==='builtin'){o.disabled=!IN_CLAUDE;if(!IN_CLAUDE)o.textContent='Claude in this page (only inside Claude)'}
+  else if(IN_CLAUDE){o.disabled=true;o.textContent+=' — standalone file only'}
+});
+function fillSuggest(p){modelList.innerHTML=(PROV[p].suggest||[]).map(m=>`<option value="${m}">`).join('')}
+function paintEngine(){
+  const p=cfg.provider;prov.value=p;
+  builtinBox.hidden=p!=='builtin';extBox.hidden=p==='builtin';urlRow.hidden=p!=='compat';
+  bmodel.value=cfg.builtinModel;baseUrl.value=cfg.baseUrl||'';
+  apiKey.value=cfg.keys[p]||'';xmodel.value=cfg.models[p]??PROV[p].def??'';
+  rememberKey.checked=cfg.remember;fillSuggest(p);
+  const m=p==='builtin'?bmodel.selectedOptions[0]?.textContent:(xmodel.value||'no model set');
+  engineSum.textContent=`${PROV[p].name} · ${m}`;
+  if(IN_CLAUDE)eNote('Inside Claude, portraits are read by the Claude model you pick here, on your Claude plan. To use your own API key (Anthropic, OpenAI, Gemini, OpenRouter or a local model), open the standalone Face Lab file in your browser.');
+  else if(p==='compat')eNote('Any server that speaks the OpenAI chat format with image input. It must allow requests from this page (CORS).');
+  else eNote('Your key stays in this browser and is sent only to the provider you choose.');
+  updateReadBtn();
+}
+prov.onchange=()=>{cfg.provider=prov.value;saveCfg();paintEngine()};
+bmodel.onchange=()=>{cfg.builtinModel=bmodel.value;saveCfg();paintEngine()};
+xmodel.oninput=()=>{cfg.models[cfg.provider]=xmodel.value.trim();saveCfg();engineSum.textContent=`${PROV[cfg.provider].name} · ${xmodel.value||'no model set'}`;updateReadBtn()};
+apiKey.oninput=()=>{cfg.keys[cfg.provider]=apiKey.value.trim();saveCfg();updateReadBtn()};
+baseUrl.oninput=()=>{cfg.baseUrl=baseUrl.value.trim().replace(/\/+$/,'');saveCfg()};
+rememberKey.onchange=()=>{cfg.remember=rememberKey.checked;saveCfg();eNote(cfg.remember?'Keys will be remembered in this browser.':'Keys are kept only until you close this tab.')};
+$('showKey').onclick=e=>{const s=apiKey.type==='password';apiKey.type=s?'text':'password';e.target.textContent=s?'Hide':'Show'};
+$('forgetKey').onclick=()=>{cfg.keys={};saveCfg();apiKey.value='';updateReadBtn();eNote('Saved keys removed from this browser.','ok')};
+
+function ready(){
+  if(cfg.provider==='builtin')return !!sampleFn;
+  if(IN_CLAUDE)return false;
+  const needsKey=cfg.provider!=='compat';
+  return !!(cfg.models[cfg.provider]||PROV[cfg.provider].def)&&(!needsKey||cfg.keys[cfg.provider])&&(cfg.provider!=='compat'||cfg.baseUrl);
+}
+function updateReadBtn(){readBtn.disabled=!refFile||!ready()}
+
+// ---- photo input ----
+function setFile(f){
+  if(!f||!/^image\/(jpeg|png|webp)$/.test(f.type)){note('Use a JPEG, PNG or WebP photo.','err');return}
+  refFile=f;thumb.src=URL.createObjectURL(f);thumb.hidden=false;dropTxt.hidden=true;updateReadBtn();
+  note(ready()?'Ready. Press “Read portrait”.':'Photo loaded. Set up the model under “Analyse with” below.');
+}
+fileIn.addEventListener('change',()=>setFile(fileIn.files[0]));
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>setFile(ev.dataTransfer.files[0]));
+document.addEventListener('paste',ev=>{const f=[...(ev.clipboardData?.files||[])][0];if(f)setFile(f)});
+
+// Shrink to ~1024px JPEG so API calls stay cheap and fast.
+function toJpeg(file,max=1024){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{
+  const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');
+  c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  const url=c.toDataURL('image/jpeg',0.88);res({url,b64:url.split(',')[1],mime:'image/jpeg'})};
+  img.onerror=()=>rej({code:'image_rejected'});img.src=URL.createObjectURL(file)})}
+
+function parseJSON(t){
+  if(!t)throw{code:'invalid_json'};
+  try{return JSON.parse(t)}catch{}
+  const f=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(f){try{return JSON.parse(f[1])}catch{}}
+  const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch{}}
+  throw{code:'invalid_json'};
+}
+async function http(url,opts){
+  let r;try{r=await fetch(url,opts)}catch(e){if(e.name==='AbortError')throw{code:'cancelled'};throw{code:'network'}}
+  const txt=await r.text();let body;try{body=JSON.parse(txt)}catch{body=txt}
+  if(!r.ok){const m=body?.error?.message||body?.message||(typeof body==='string'?body.slice(0,200):'');
+    throw{code:r.status===401||r.status===403?'bad_key':r.status===429?'rate_limited':r.status===404?'bad_model':'http',status:r.status,detail:m}}
+  return body;
+}
+
+// ---- providers ----
+async function callModel(prompt,signal){
+  const p=cfg.provider;
+  if(p==='builtin'){
+    const opts={images:[refFile],signal};
+    if(cfg.builtinModel.startsWith('tier:'))opts.modelTier=cfg.builtinModel.slice(5);
+    else{opts.model=cfg.builtinModel;opts.modelTier='default'}
+    return await sampleFn.json(prompt,opts);
+  }
+  const key=cfg.keys[p],model=cfg.models[p]||PROV[p].def,img=await toJpeg(refFile);
+  if(p==='anthropic'){
+    const b=await http('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model,max_tokens:3000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:img.mime,data:img.b64}},{type:'text',text:prompt}]}]})});
+    return parseJSON((b.content||[]).filter(x=>x.type==='text').map(x=>x.text).join(''));
+  }
+  if(p==='gemini'){
+    const b=await http(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.replace(/^models\//,''))}:generateContent`,{method:'POST',signal,headers:{'content-type':'application/json','x-goog-api-key':key},
+      body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:img.mime,data:img.b64}},{text:prompt}]}],generationConfig:{responseMimeType:'application/json'}})});
+    return parseJSON((b.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join(''));
+  }
+  // OpenAI, OpenRouter and OpenAI-compatible servers share one request shape
+  const base=p==='openai'?'https://api.openai.com/v1':p==='openrouter'?'https://openrouter.ai/api/v1':cfg.baseUrl;
+  const h={'content-type':'application/json'};if(key)h.authorization='Bearer '+key;
+  if(p==='openrouter')h['X-Title']='Face Lab';
+  const b=await http(base+'/chat/completions',{method:'POST',signal,headers:h,
+    body:JSON.stringify({model,messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:img.url}}]}]})});
+  const c=b.choices?.[0]?.message?.content;
+  return parseJSON(Array.isArray(c)?c.map(x=>x.text||'').join(''):c);
+}
+
+// "List models" asks the provider which models this key can use
+$('listModels').onclick=async()=>{
+  const p=cfg.provider,key=cfg.keys[p];
+  if(p!=='compat'&&!key){eNote('Paste your API key first.','err');return}
+  eNote('Fetching models…');
+  try{
+    let ids=[];
+    if(p==='anthropic'){const b=await http('https://api.anthropic.com/v1/models?limit=100',{headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}});ids=b.data.map(m=>m.id)}
+    else if(p==='gemini'){const b=await http('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':key}});ids=b.models.filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace(/^models\//,''))}
+    else if(p==='openrouter'){const b=await http('https://openrouter.ai/api/v1/models',{});ids=b.data.filter(m=>(m.architecture?.input_modalities||[]).includes('image')).map(m=>m.id)}
+    else{const base=p==='openai'?'https://api.openai.com/v1':cfg.baseUrl;const h={};if(key)h.authorization='Bearer '+key;const b=await http(base+'/models',{headers:h});ids=b.data.map(m=>m.id)}
+    ids.sort();modelList.innerHTML=ids.map(m=>`<option value="${m}">`).join('');
+    eNote(`${ids.length} models available. Click the Model ID field to pick one${p==='openai'||p==='compat'?' (choose one that accepts images)':''}.`,'ok');
+  }catch(e){eNote(errText(e),'err')}
+};
+
+function spec(){
+  const lines=[];
+  ALL.forEach(c=>{
+    if(SKIP.includes(c.id))return;
+    if(CAM.includes(c.id)&&!camToo.checked)return;
+    if(c.id==='age')lines.push(`"age": integer 0–100 where 0 = 18 years old and 100 = 90 years old (linear)`);
+    else if(c.id==='tone')lines.push(`"tone": integer 0–100 mapping Fitzpatrick I (0–16), II (17–33), III (34–49), IV (50–66), V (67–83), VI (84–100)`);
+    else if(c.id==='lens')lines.push(`"lens": integer 0–100 for the apparent focal length, 0 = 24mm wide, 67 = 85mm, 100 = 135mm`);
+    else if(c.t==='s')lines.push(`"${c.id}": integer 0–100, ${c.label}: 0 = ${c.words[0]||c.ends[0]}, 25 = ${c.words[1]||c.ends[0]}, 50 = average, 75 = ${c.words[3]||c.ends[1]}, 100 = ${c.words[4]||c.ends[1]}`);
+    else lines.push(`"${c.id}": one of ${JSON.stringify(c.opts)} (${c.label})`);
+  });
+  return lines.join('\n');
+}
+function errText(e){
+  const m={cancelled:'Stopped.',not_granted:'Reading portraits needs permission to use Claude. Allow it from the page’s Permissions menu.',
+    images_unavailable:'This view can’t send images to Claude.',image_rejected:'That image couldn’t be read. Try a different photo.',
+    rate_limited:'Rate limit reached. Wait a moment and try again.',refused:'The model declined to analyse this image. Try a different portrait.',
+    invalid_json:'The answer came back in the wrong shape. Try again, or pick a stronger model.',session_expired:'Your Claude session expired. Sign in again.',
+    bad_key:'The provider rejected the API key. Check it and try again.',bad_model:'That model ID wasn’t found. Use “List models” to pick a valid one.',
+    network:'Couldn’t reach the provider. Check your connection, or for a custom URL make sure the server allows browser (CORS) requests.'};
+  return (m[e?.code]||(e?.status?`The provider returned an error (${e.status}).`:'Something went wrong reading the photo.'))+(e?.detail?` ${e.detail}`:'');
+}
+async function readPortrait(){
+  if(!refFile||!ready())return;
+  ctl=new AbortController();readBtn.disabled=true;stopBtn.hidden=false;note(`Reading the face with ${engineSum.textContent}…`);
+  const prompt=`You are calibrating a face-description tool. Look at the attached portrait and estimate each visible facial feature on the scales below, judged against an average adult face. Describe what is visible only; do not identify the person or guess their name. Use 50 for anything average or not visible (for example ears hidden by hair). Be decisive: move a value away from 50 only when the feature clearly differs from average.
+
+Reply with only one JSON object with exactly these keys:
+${spec()}
+
+Example shape: {"jaw":70,"ec":"hazel","smile":40}`;
+  try{
+    const r=await callModel(prompt,ctl.signal);
+    if(!r||typeof r!=='object')throw{code:'invalid_json'};
+    let n=0;
+    ALL.forEach(c=>{
+      if(!(c.id in r))return;
+      if(c.t==='s'){const v=Math.round(Number(r[c.id]));if(Number.isFinite(v)){st[c.id]=Math.max(0,Math.min(100,v));n++}}
+      else{const want=String(r[c.id]).toLowerCase().trim();const i=c.opts.findIndex(o=>o.toLowerCase()===want);if(i>=0){st[c.id]=i;n++}}
+    });
+    sync();note(`Set ${n} controls from the photo. Fine-tune anything that looks off.`,'ok');say('Sliders matched to portrait');
+  }catch(e){
+    note(errText(e),e?.code==='cancelled'?'':'err');
+    if(cfg.provider==='builtin'&&['not_granted','sampling_disabled','images_unavailable','capability_disabled'].includes(e?.code))sampleFn=null;
+  }finally{updateReadBtn();stopBtn.hidden=true}
+}
+readBtn.onclick=readPortrait;
+stopBtn.onclick=()=>ctl?.abort();
+paintEngine();
+if(IN_CLAUDE)(async()=>{
+  try{
+    const s=await window.claude.use('sample');
+    const lim=s?await s.limits().catch(()=>null):null;
+    if(s&&lim?.images){sampleFn=s;updateReadBtn()}
+    else note('Reading portraits isn’t available in this view. Sliders still work on their own.');
+  }catch{note('Reading portraits isn’t available here. Sliders still work on their own.')}
+})();
+
+if(!IN_CLAUDE&&!cfg.keys[cfg.provider])$('engine').open=true;
+
+// sample starting face so the page opens with something to look at
+Object.assign(st,{ethn:1,shape:1,cb:72,jaw:62,es:68,et:66,lash:80,ec:4,bt:78,ba:70,nb:72,lf:74,cupid:76,tone:45,ut:2,tex:68,hl:85,htx:70,hc:2,hs:2,smile:66,emo:2,light:1,lens:67,dof:78,frk:0});
+sync();
+</script>
+</body></html>
